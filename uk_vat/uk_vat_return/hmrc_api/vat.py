@@ -47,11 +47,20 @@ def get_open_obligations(company):
     return response["obligations"]
 
 def submit_return(company, vat_return):
+    h = {}
+    h.update(accept_header)
+    h.update(get_fraud_prevention_headers())
+    
     oauth = get_session(company)
     vrn = get_vrn(company)
     api_base = frappe.db.get_single_value("HMRC API Settings", "api_base")
+    # commented out as does not seem to post with headers
+    # response = oauth.post(api_base+"/organisations/vat/%s/returns" % vrn,
+    #         headers = accept_header, json = vat_return)
+    
+    # new code to add headers for returns endpoint
     response = oauth.post(api_base+"/organisations/vat/%s/returns" % vrn,
-            headers = accept_header, json = vat_return)
+            headers = h, json = vat_return)
 
     return response.json(), response.headers
 
