@@ -76,11 +76,13 @@ def get_fraud_prevention_headers():
 
     # Suggested method does not work. If GOV wants these then GOV can tell us
     # how they want us to get them.
-    h["Gov-Client-Local-IPs"] = ""
-    h["Gov-Client-Local-IPs-Timestamp"] = ""
+    # Headers below are not required for WEB_APP_VIA_SERVER connection method.
+    # Commenting out
+    #h["Gov-Client-Local-IPs"] = ""
+    #h["Gov-Client-Local-IPs-Timestamp"] = ""
 
     # We don't use multi-factor.
-    h["Gov-Client-Multi-Factor"] = ""
+    #h["Gov-Client-Multi-Factor"] = ""
 
     return h
 
