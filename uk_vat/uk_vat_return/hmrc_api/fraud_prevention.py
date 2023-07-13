@@ -20,8 +20,9 @@ def get_fraud_prevention_headers():
     h["Gov-Client-Connection-Method"] = "WEB_APP_VIA_SERVER"
     h["Gov-Client-Browser-Do-Not-Track"] = str(
         bool(frappe.request.headers.get("DNT"))).lower()
-    h["Gov-Vendor-License-IDs"] = "{}={}".format(
-        "ERPNext", hashlib.sha256(b"OPEN SOURCE").hexdigest())
+    # We don't issue software licences.
+    #h["Gov-Vendor-License-IDs"] = "{}={}".format(
+    #    "ERPNext", hashlib.sha256(b"OPEN SOURCE").hexdigest())
     h["Gov-Vendor-Product-Name"] = "ERPNext-MTD-VAT-Module"
     h["Gov-Vendor-Version"] = "erpnext-mtd-module=1.0&{}={}".format(
         platform.system(), platform.release()
@@ -72,10 +73,12 @@ def get_fraud_prevention_headers():
         chdr["ScreenColorDepth"]
     )
 
-    h["Gov-Client-Browser-Plugins"] = chdr["Plugins"]
+    # Header not required for WEB_APP_VIA_SERVER connection method.
+    #h["Gov-Client-Browser-Plugins"] = chdr["Plugins"]
 
     # Suggested method does not work. If GOV wants these then GOV can tell us
     # how they want us to get them.
+    
     # Headers below are not required for WEB_APP_VIA_SERVER connection method.
     # Commenting out
     #h["Gov-Client-Local-IPs"] = ""
