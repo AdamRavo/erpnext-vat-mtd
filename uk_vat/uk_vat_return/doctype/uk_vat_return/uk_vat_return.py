@@ -90,7 +90,9 @@ def get_transactions(company, invoice_type, period_start_date, period_end_date):
 			frappe.throw("VAT rate not set on Item Tax Template %s" %
 				t["item_tax_template"])
 
-		t["vat"] = t["base_amount"] * (t["vat_rate"] / 100.0)
+		# Round each line to the penny, as ERPNext does when it posts VAT, so
+		# the return agrees with the ledger.
+		t["vat"] = flt(t["base_amount"] * (t["vat_rate"] / 100.0), 2)
 
 	return transactions
 
@@ -224,18 +226,22 @@ def get_vat_return(company, period_start_date, period_end_date, drilldown=None):
 		else:
 			frappe.throw("Unknown vat_rules: %s" % repr(purchase["vat_rules"]))
 
-	# Box 3 = Box 1 + Box 2
-	vat_return["totalVatDue"] += vat_return["vatDueSales"] + \
-		vat_return["vatDueAcquisitions"]
-
-	# Box 5 = Box 3 - Box 4
-	# Value must always be positive, adding 'abs()' function in case Net VAT is negative
-	vat_return["netVatDue"] = abs(vat_return["totalVatDue"] - \
-		vat_return["vatReclaimedCurrPeriod"])
-
-	# All figures need to be of required precision
-	for f in vat_return_schema.keys():
+	# Round the boxes that are summed from invoices before deriving Boxes 3
+	# and 5 from them. HMRC rejects a return unless Box 3 = Box 1 + Box 2 and
+	# Box 5 = Box 3 - Box 4 exactly, using the submitted (rounded) figures.
+	for f in ("vatDueSales", "vatDueAcquisitions", "vatReclaimedCurrPeriod",
+			  "totalValueSalesExVAT", "totalValuePurchasesExVAT",
+			  "totalValueGoodsSuppliedExVAT", "totalAcquisitionsExVAT"):
 		vat_return[f] = flt(vat_return[f], vat_return_schema[f][3])
+
+	# Box 3 = Box 1 + Box 2
+	vat_return["totalVatDue"] = flt(vat_return["vatDueSales"] +
+		vat_return["vatDueAcquisitions"], 2)
+
+	# Box 5 = difference between Box 3 and Box 4. HMRC requires a positive
+	# figure; whether it is payable or repayable follows from Boxes 3 and 4.
+	vat_return["netVatDue"] = flt(abs(vat_return["totalVatDue"] -
+		vat_return["vatReclaimedCurrPeriod"]), 2)
 
 	return vat_return
 
