@@ -4,11 +4,11 @@ from . import __version__ as app_version
 
 app_name = "uk_vat"
 app_title = "UK VAT"
-app_publisher = "Software to Hardware Ltd"
-app_description = "United Kingdom VAT Return and Making-Tax-Digital (MTD) submission"
+app_publisher = "RavoLabs Ltd"
+app_description = "UK VAT return and Making Tax Digital (MTD) submission for ERPNext"
 app_icon = "octicon octicon-file-directory"
 app_color = "blue"
-app_email = "info@softwaretohardware.com"
+app_email = "84633373+AdamRavo@users.noreply.github.com"
 app_license = "GPL3"
 
 # Includes in <head>
