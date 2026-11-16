@@ -23,7 +23,7 @@ required.
 You can install this module into your existing installation with :
 
 ```sh
-	bench get-app uk_vat https://github.com/AdamRavo/erpnext-vat-mtd
+	bench get-app --branch version-15 uk_vat https://github.com/AdamRavo/erpnext-vat-mtd
 	bench install-app uk_vat
 ```
 
