@@ -1,12 +1,19 @@
 [project]
 name = "uk_vat"
 authors = [
-    { name = "Adam Ravo" }
+    { name = "RavoLabs Ltd", email = "84633373+AdamRavo@users.noreply.github.com" },
+    { name = "Software to Hardware Ltd", email = "info@softwaretohardware.com" }
 ]
-description = "UK VAT MTD Integration"
+description = "UK VAT return and Making Tax Digital (MTD) submission for ERPNext"
+readme = "README.md"
+license = { text = "GPL-3.0" }
 requires-python = ">=3.10"
 dependencies = []
 dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/AdamRavo/erpnext-vat-mtd"
+Original = "https://github.com/software-to-hardware/erpnext-vat-mtd"
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
