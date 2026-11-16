@@ -247,6 +247,10 @@ submit your return.
  * Submitting recalculates the return first and refuses to send figures that
    are out of date.
  * Saving warns about invoice lines with no Item Tax Template.
+ * Invoices are included by posting date whether or not they have been paid.
+   The `version-15` branch had limited the return to invoices with status
+   Paid, so an invoice still unpaid when its return was saved was never
+   declared. Under standard VAT accounting the tax point is the invoice date.
 
 ## License
 

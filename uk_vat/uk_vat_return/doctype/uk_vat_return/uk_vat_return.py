@@ -146,7 +146,6 @@ def get_transactions(company, invoice_type, period_start_date, period_end_date):
 			tt.name = ii.item_tax_template
 		where
 			invoice.docstatus = 1 and
-   			invoice.status = 'Paid' and
 			invoice.posting_date >= %s and
 			invoice.posting_date <= %s and
 			tt.vat_is_in_vat_return = 1
