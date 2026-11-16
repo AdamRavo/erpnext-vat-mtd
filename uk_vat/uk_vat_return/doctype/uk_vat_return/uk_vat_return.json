@@ -22,6 +22,10 @@
   "total_ec_goods_output",
   "amended_from",
   "total_ec_goods_input",
+  "section_adjustments",
+  "vat_output_adjustment",
+  "vat_input_adjustment",
+  "adjustment_reason",
   "section_submission",
   "declaraion",
   "is_finalised",
@@ -120,6 +124,33 @@
    "fieldtype": "Currency",
    "label": "9. Total EC acquisitions of goods, ex. VAT",
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "collapsible_depends_on": "eval:doc.vat_output_adjustment || doc.vat_input_adjustment",
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "section_adjustments",
+   "fieldtype": "Section Break",
+   "label": "Corrections for errors on earlier returns"
+  },
+  {
+   "description": "VAT under-declared on earlier returns. Added to Box 1. Use only for errors within HMRC's limits for correcting on the next return (VAT Notice 700/45).",
+   "fieldname": "vat_output_adjustment",
+   "fieldtype": "Currency",
+   "label": "Box 1 adjustment"
+  },
+  {
+   "description": "VAT over-declared, or input VAT not claimed, on earlier returns. Added to Box 4.",
+   "fieldname": "vat_input_adjustment",
+   "fieldtype": "Currency",
+   "label": "Box 4 adjustment"
+  },
+  {
+   "description": "Which return and invoices the correction relates to. Keep this as your record of the error.",
+   "fieldname": "adjustment_reason",
+   "fieldtype": "Small Text",
+   "label": "Reason for adjustment",
+   "mandatory_depends_on": "eval:doc.vat_output_adjustment || doc.vat_input_adjustment"
   },
   {
    "fieldname": "amended_from",
@@ -245,7 +276,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2020-04-15 19:26:23.905038",
+ "modified": "2026-11-16 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "UK VAT Return",
  "name": "UK VAT Return",

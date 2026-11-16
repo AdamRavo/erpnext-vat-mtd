@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from uk_vat.uk_vat_return.doctype.uk_vat_return.uk_vat_return import get_vat_return, vat_return_schema
+from uk_vat.uk_vat_return.doctype.uk_vat_return.uk_vat_return import get_vat_return, get_adjustments, vat_return_schema
 
 def execute(filters=None):
 
@@ -38,11 +38,25 @@ def execute(filters=None):
 				 'width': 120}
 	]
 
+	# Include any corrections entered on the VAT return for this period, so
+	# the drilldown totals agree with the return.
+	adjustments = None
+	vat_return_name = frappe.db.get_value("UK VAT Return",
+		{"company": filters.company,
+		 "period_start_date": filters.period_start_date,
+		 "period_end_date": filters.period_end_date,
+		 "docstatus": ["<", 2]},
+		"name", order_by="modified desc")
+	if vat_return_name:
+		adjustments = get_adjustments(
+			frappe.get_doc("UK VAT Return", vat_return_name))
+
 	drilldown = {}
-	vat_return = get_vat_return(filters.company, 
+	vat_return = get_vat_return(filters.company,
 								filters.period_start_date,
 								filters.period_end_date,
-								drilldown)
+								drilldown,
+								adjustments=adjustments)
 
 	box_order = [
 		"vatDueSales",

@@ -21,7 +21,7 @@ frappe.ui.form.on('UK VAT Return', {
 
 		if(!frm.is_new()) {
 
-			if (!frm.doc.docstatus==1) {
+			if (frm.doc.docstatus === 0) {
 				frm.add_custom_button(__('Save and recalculate'), function() {
 					frm.save()
 				});

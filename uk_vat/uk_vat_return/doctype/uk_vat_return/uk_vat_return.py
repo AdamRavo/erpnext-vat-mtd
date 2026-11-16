@@ -23,40 +23,113 @@ vat_return_schema = {
 	"totalAcquisitionsExVAT": 		[9, "base_amount", "Total EC acquisitions of goods, ex. VAT", 0]
 }
 
+# Fields on the UK VAT Return document that hold each HMRC box.
+box_fields = {
+	"vatDueSales":					"vat_output",
+	"vatDueAcquisitions":			"vat_eu_acquisitions",
+	"totalVatDue":					"vat_due_total",
+	"vatReclaimedCurrPeriod":		"vat_input",
+	"netVatDue":					"vat_net",
+	"totalValueSalesExVAT":			"total_output_exvat",
+	"totalValuePurchasesExVAT":		"total_input_exvat",
+	"totalValueGoodsSuppliedExVAT":	"total_ec_goods_output",
+	"totalAcquisitionsExVAT":		"total_ec_goods_input"
+}
+
+# Errors on earlier returns can be corrected on the next return when their
+# net value is within these limits (VAT Notice 700/45, section 4). Larger
+# errors have to be reported to HMRC separately.
+ERROR_CORRECTION_LIMIT = 10000
+ERROR_CORRECTION_CEILING = 50000
+
+
 class UKVATReturn(Document):
+
+	def validate(self):
+		self.validate_adjustments()
 
 	def before_save(self):
 
-		vat_return = get_vat_return(self.company,
-									self.period_start_date,
+		vat_return = calculate_vat_return(self)
+
+		for box, fieldname in box_fields.items():
+			self.set(fieldname, vat_return[box])
+
+		self.check_error_correction_limit()
+		warn_lines_without_template(self.period_start_date,
 									self.period_end_date)
 
-		# Box 1
-		self.vat_output = vat_return["vatDueSales"]
+	def validate_adjustments(self):
 
-		# Box 2
-		self.vat_eu_acquisitions = vat_return["vatDueAcquisitions"]
+		box1 = flt(self.get("vat_output_adjustment"), 2)
+		box4 = flt(self.get("vat_input_adjustment"), 2)
 
-		# Box 3
-		self.vat_due_total = vat_return["totalVatDue"]
+		if box1 < 0 or box4 < 0:
+			frappe.throw("Adjustments must be positive. Put VAT you under-"
+				"declared in the Box 1 adjustment and VAT you over-declared "
+				"(or under-claimed) in the Box 4 adjustment.")
 
-		# Box 4
-		self.vat_input = vat_return["vatReclaimedCurrPeriod"]
+		if (box1 or box4) and not (self.get("adjustment_reason") or "").strip():
+			frappe.throw("Enter the reason for the adjustment, including the "
+				"return period and invoices it corrects. HMRC expects you to "
+				"keep a record of each correction.")
 
-		# Box 5
-		self.vat_net = vat_return["netVatDue"]
+	def check_error_correction_limit(self):
 
-		# Box 6
-		self.total_output_exvat = vat_return["totalValueSalesExVAT"]
+		net = abs(flt(self.get("vat_output_adjustment"), 2) -
+				  flt(self.get("vat_input_adjustment"), 2))
+		if net <= ERROR_CORRECTION_LIMIT:
+			return
 
-		# Box 7
-		self.total_input_exvat = vat_return["totalValuePurchasesExVAT"]
+		box6 = flt(self.total_output_exvat)
+		if net > ERROR_CORRECTION_CEILING or net > box6 * 0.01:
+			frappe.throw("The net value of the adjustments (%s) is above the "
+				"limit for correcting errors on the next return. Report the "
+				"errors to HMRC separately instead (VAT Notice 700/45, "
+				"section 4)." % frappe.format_value(net, {"fieldtype": "Currency"}))
 
-		# Box 8
-		self.total_ec_goods_output = vat_return["totalValueGoodsSuppliedExVAT"]
 
-		# Box 9
-		self.total_ec_goods_input = vat_return["totalAcquisitionsExVAT"]
+def get_adjustments(doc):
+	"""Box 1 and Box 4 corrections for errors on earlier returns."""
+	return {
+		"vatDueSales": flt(doc.get("vat_output_adjustment"), 2),
+		"vatReclaimedCurrPeriod": flt(doc.get("vat_input_adjustment"), 2),
+		"reason": doc.get("adjustment_reason")
+	}
+
+
+def calculate_vat_return(doc, drilldown=None):
+	return get_vat_return(doc.company,
+						  doc.period_start_date,
+						  doc.period_end_date,
+						  drilldown,
+						  adjustments=get_adjustments(doc))
+
+
+def warn_lines_without_template(period_start_date, period_end_date):
+	"""Lines with no Item Tax Template are left out of the return. Say so,
+	rather than dropping them silently."""
+
+	missing = []
+	for invoice_type in ("Sales", "Purchase"):
+		missing += frappe.db.sql_list("""
+			select distinct invoice.name from
+				`tab{invoice_type} Invoice` invoice
+			inner join `tab{invoice_type} Invoice Item` ii on
+				ii.parent = invoice.name
+			where
+				invoice.docstatus = 1 and
+				invoice.posting_date >= %s and
+				invoice.posting_date <= %s and
+				ifnull(ii.item_tax_template, '') = ''
+			""".format(invoice_type=invoice_type),
+			(period_start_date, period_end_date))
+
+	if missing:
+		frappe.msgprint(
+			"These invoices have lines with no Item Tax Template, so those "
+			"lines are not in this return: %s" % ", ".join(missing),
+			title="Lines left out of the VAT return", indicator="orange")
 
 
 def get_transactions(company, invoice_type, period_start_date, period_end_date):
@@ -97,7 +170,8 @@ def get_transactions(company, invoice_type, period_start_date, period_end_date):
 	return transactions
 
 
-def get_vat_return(company, period_start_date, period_end_date, drilldown=None):
+def get_vat_return(company, period_start_date, period_end_date, drilldown=None,
+				   adjustments=None):
 
 	if period_start_date > period_end_date:
 		frappe.throw("Cannot create VAT return where start date is after the end date.")
@@ -234,6 +308,20 @@ def get_vat_return(company, period_start_date, period_end_date, drilldown=None):
 			  "totalValueGoodsSuppliedExVAT", "totalAcquisitionsExVAT"):
 		vat_return[f] = flt(vat_return[f], vat_return_schema[f][3])
 
+	# Corrections for errors on earlier returns (VAT Notice 700/45, Method 1)
+	# are added to Box 1 (VAT owed to HMRC) or Box 4 (VAT owed to you).
+	if adjustments:
+		for f in ("vatDueSales", "vatReclaimedCurrPeriod"):
+			amount = flt(adjustments.get(f), 2)
+			if not amount:
+				continue
+			vat_return[f] = flt(vat_return[f] + amount, 2)
+			if drilldown is not None:
+				drilldown[f] += [[frappe._dict(
+					name="Correction of earlier returns",
+					item_name=adjustments.get("reason") or "",
+					item_tax_template=None), amount]]
+
 	# Box 3 = Box 1 + Box 2
 	vat_return["totalVatDue"] = flt(vat_return["vatDueSales"] +
 		vat_return["vatDueAcquisitions"], 2)
@@ -249,15 +337,42 @@ def get_vat_return(company, period_start_date, period_end_date, drilldown=None):
 def get_open_obligations(company_name):	
 	return vat_api.get_open_obligations(company_name)
 
+def check_figures_are_current(doc):
+
+	current = calculate_vat_return(doc)
+	changed = []
+	for box, fieldname in box_fields.items():
+		precision = vat_return_schema[box][3]
+		if flt(doc.get(fieldname), precision) != flt(current[box], precision):
+			changed.append("Box %d: saved %s, now %s" % (
+				vat_return_schema[box][0],
+				flt(doc.get(fieldname), precision),
+				flt(current[box], precision)))
+
+	if changed:
+		frappe.throw("The invoices for this period have changed since the "
+			"return was saved, so it has not been sent to HMRC. Click "
+			"'Save and recalculate', check the figures and submit again."
+			"<br><br>" + "<br>".join(changed),
+			title="VAT return is out of date")
+
+
 @frappe.whitelist()
 def submit_vat_return(name, is_finalised):
 
 	doc = frappe.get_doc("UK VAT Return", name)
 
-	# Match dates on the form to an open obgligation
+	if doc.docstatus != 0:
+		frappe.throw("This VAT return has already been submitted or cancelled.")
+
+	# The boxes are stored when the return is saved. If an invoice has been
+	# submitted, cancelled or amended since then, the stored figures are out
+	# of date. Refuse to send them rather than submit the wrong return.
+	check_figures_are_current(doc)
+
+	# Match dates on the form to an open obligation
 	obligations = vat_api.get_open_obligations(doc.company)
 	selected_obligation = None
-	print(type(doc.period_end_date))
 	for o in obligations:
 		start = datetime.datetime.strptime(o["start"], "%Y-%m-%d").date()
 		end = datetime.datetime.strptime(o["end"], "%Y-%m-%d").date()
