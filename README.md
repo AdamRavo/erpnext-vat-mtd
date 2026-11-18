@@ -15,17 +15,32 @@ The UK VAT module is an application for ERPNext to extend it to include:
  * An optional Making-Tax-Digital submission. (Please note: This feature requires additional
    client credentials from HMRC.)
 
-We hope you find it useful. Please feel free to raise issues or submit pull requests as
-required.
+Raise issues and pull requests for this fork on
+[AdamRavo/erpnext-vat-mtd](https://github.com/AdamRavo/erpnext-vat-mtd/issues).
 
 ## Installation
 
-You can install this module into your existing installation with :
+This fork targets Frappe and ERPNext v15 and is maintained on the `version-15`
+branch. `master` tracks the original repository and is not maintained here.
+
+Install it into an existing bench with:
 
 ```sh
-	bench get-app --branch version-15 uk_vat https://github.com/AdamRavo/erpnext-vat-mtd
-	bench install-app uk_vat
+bench get-app --branch version-15 https://github.com/AdamRavo/erpnext-vat-mtd
+bench --site <your-site> install-app uk_vat
 ```
+
+For a [frappe_docker](https://github.com/frappe/frappe_docker) custom image, add
+it to `apps.json`:
+
+```json
+{
+  "url": "https://github.com/AdamRavo/erpnext-vat-mtd",
+  "branch": "version-15"
+}
+```
+
+After upgrading to a new version, run `bench --site <your-site> migrate`.
 
 ## Configuration of the VAT return
 
@@ -92,7 +107,7 @@ the VAT return will be affected.
 You are free to define the categories as you see fit or use existing categories
 if you have them.
 
-By way of example, we configured ours like this:
+The original authors configured theirs like this:
 
 | Item Template Name    | Ledger Tax Rate | Include in VAT return? | VAT Rules | Reverse? | Transaction Type | VAT Rate |
 |-----------------------|-----------------|------------------------|-----------|----------|------------------|----------|
@@ -104,6 +119,13 @@ By way of example, we configured ours like this:
 | EU Goods              | 0%              | Yes                    | EU        | No       | Goods            | 20%      |
 | EU Services           | 0%              | Yes                    | EU        | Yes      | Services         | 20%      |
 | EU Goods (Zero rated) | 0%              | Yes                    | EU        | No       | Goods            | 0%       |
+| Reverse Charge Services | 0%            | Yes                    | Rest of World | Yes  | Services         | 20%      |
+
+This example dates from before the UK left the EU. Since 1 January 2021, the EU
+rules (Boxes 2, 8 and 9) apply only to goods moving between Northern Ireland and
+the EU. Services bought from suppliers outside the UK, including in the EU, use
+VAT Rules "Rest of World" with Transaction Type "Services": the reverse charge
+goes in Boxes 1 and 4, and the net value in Boxes 6 and 7.
 
 ### Applying the Tax Item Templates
 
@@ -112,7 +134,7 @@ groups allows you to apply the Tax Item Templates to a group of items without ne
 visit each one. However, if you need to specialise an item, you can apply a Tax Item Template
 directly to it if you wish.
 
-For example, our "services" item group may define the following links:
+For example, a "services" item group may define the following links:
 
 ![Tax Item Group Example](doc/img/TiTGroupExample.png)
 
@@ -241,8 +263,8 @@ submit your return.
    so the return agrees with the VAT account.
  * Boxes 1, 2, 4 and 6 to 9 are rounded before Boxes 3 and 5 are derived from
    them. HMRC rejected returns where Box 3 or Box 5 did not match the
-   submitted figures exactly.
- * Box 5 is always submitted as a positive figure, as HMRC requires.
+   submitted figures exactly. Box 5 is still always positive, as HMRC
+   requires.
  * Box 1 and Box 4 adjustments for correcting errors on earlier returns.
  * Submitting recalculates the return first and refuses to send figures that
    are out of date.
@@ -251,6 +273,8 @@ submit your return.
    The `version-15` branch had limited the return to invoices with status
    Paid, so an invoice still unpaid when its return was saved was never
    declared. Under standard VAT accounting the tax point is the invoice date.
+ * Package metadata is in `pyproject.toml`. `setup.py`, `MANIFEST.in` and the
+   outdated CentOS 8 installation guide are removed.
 
 ## License
 
